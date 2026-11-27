@@ -53,7 +53,6 @@ jobs:
 
   despliegue:
     name: Despliegue en GitHub Pages
-    despliegue:
     needs: [pruebas, seguridad] # TODO 2: este job solo debe partir cuando "pruebas" y "seguridad" terminen bien
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
