@@ -1,0 +1,88 @@
+# Evaluación Parcial 3 - Pipeline CI/CD (AUY1102)
+# Completa los dos TODO antes de hacer push. No cambies la sangría: YAML usa espacios.
+name: EP3 Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ] # TODO 1: agrega aquí el evento pull_request para la rama main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    name: Pruebas unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar pytest
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Ejecutar pruebas
+        run: pytest -v
+
+  seguridad:
+    name: Analisis CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+      - name: Iniciar CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          build-mode: none
+          queries: security-extended
+      - name: Analizar y publicar resultados
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:python"
+
+  despliegue:
+    name: Despliegue en GitHub Pages
+    despliegue:
+      needs: [pruebas, seguridad] # TODO 2: este job solo debe partir cuando "pruebas" y "seguridad" terminen bien
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+      - name: Empaquetar la carpeta site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publicar en GitHub Pages
+        id: publicar
+        uses: actions/deploy-pages@v4
+      - name: Registrar publicacion (DORA)
+        run: |
+          COMMIT_AT=$(git log -1 --format=%cI)
+          DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          {
+            echo "### Registro de publicacion (DORA)"
+            echo ""
+            echo "| Commit | Hora del commit | Hora de publicacion (UTC) | Sitio |"
+            echo "|---|---|---|---|"
+            echo "| ${GITHUB_SHA::7} | $COMMIT_AT | $DEPLOYED_AT | ${{ steps.publicar.outputs.page_url }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

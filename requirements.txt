@@ -1,0 +1,4 @@
+# Dependencias declaradas del proyecto.
+# Versiones antiguas a propósito: Dependabot debe detectarlas.
+requests==2.19.1
+urllib3==1.24.1
